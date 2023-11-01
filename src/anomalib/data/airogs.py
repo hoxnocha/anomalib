@@ -146,13 +146,17 @@ class AirogsDataset(AnomalibDataset):
     def __init__(self, root, category: str, task, transform=None):
         super().__init__(task=task, transform=transform)
         self.data_dir = Path(root)
+        self.category = category
         self.root_category = Path(root) / Path(category) / Path(category)
         self.data_csv = pd.read_csv(self.data_dir / 'train_labels.csv')
 
     
     def _setup(self) -> None:
         for zip_file in self.data_dir.glob('*.zip'):
-            extract(zip_file,self.root)
+            if zip_file = f"{self.category}.zip":
+             extract(zip_file,self.root)
+        
+
         self.samples = make_airogs_dataset(self.data_dir, self.root_category, split=self.split, extensions=IMG_EXTENSIONS)   
 
              
