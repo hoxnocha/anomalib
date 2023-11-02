@@ -1,9 +1,9 @@
 dataset:
-  name: mvtec
-  format: mvtec
-  path: ./datasets/MVTec
-  task: segmentation
-  category: bottle
+  name: airogs
+  format: airogs
+  path: /images/innoretvision/eye/airorgs 
+  task: classification
+  category: 0
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8
