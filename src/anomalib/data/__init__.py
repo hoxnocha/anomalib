@@ -237,7 +237,7 @@ def get_datamodule(config: DictConfig | ListConfig) -> AnomalibDataModule:
             val_split_ratio=config.dataset.val_split_ratio,
         )
     elif config.dataset.format.lower() == DataFormat.AIROGS:
-        datamodul = Airogs(
+        datamodule = Airogs(
             root=config.dataset.path,
             category=config.dataset.category,
             image_size=(config.dataset.image_size[0], config.dataset.image_size[1]),

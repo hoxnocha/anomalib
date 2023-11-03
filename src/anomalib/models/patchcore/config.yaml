@@ -1,8 +1,8 @@
 dataset:
   name: airogs
   format: airogs
-  path: /images/innoretvision/eye/airorgs 
-  task: classification
+  path: /home/students/tyang/airogs 
+  task: classification # options: [classification, segmentation]
   category: 0
   train_batch_size: 32
   eval_batch_size: 32

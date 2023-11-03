@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from random import sample
 from zipfile import ZipFile
 import pandas as pd
 from typing import Sequence
+import glob
 
 import albumentations as A
+import os
 from pandas import DataFrame
-from torch import Tensor
+from torch import Tensor, feature_alpha_dropout
 from PIL import Image
 from anomalib.data.base import AnomalibDataModule, AnomalibDataset
 from anomalib.data.task_type import TaskType
@@ -30,8 +33,10 @@ from anomalib.data.utils import (
     ValSplitMode,
     download_and_extract,
     get_transforms,
-    extract,
+    
 )
+
+import ipdb
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +44,8 @@ IMG_EXTENSIONS = (".jpg", ".JPG")
 
 DOWNLOAD_INFO = DownloadInfo(
     name="airogs",
-    url="/images/innoretvision/eye/airogs"
-   
+    url="https://zenodo.org/records/5793241/files/0.zip?download=1",
+    hash="md5:9af51fcaa069c9f0d61dd2cd4e1c05b4",
 )
 
 CATEGORIES = (
@@ -55,7 +60,7 @@ CATEGORIES = (
 
 
 def make_airogs_dataset(
-    root: str | Path, root_category: str | Path, split: str | Split | None = None, extensions: Sequence[str] | None = None
+    root: str | Path, root_category: str | Path , split: str | Split | None = None, extensions: Sequence[str] | None = None, number_of_samples: int = 100
 ) -> DataFrame:
     """Create airogs samples by parsing the airogs data file structure.
 
@@ -88,24 +93,23 @@ def make_airogs_dataset(
 
         >>> root = Path('/images/innoretvision/eye/airogs')
         >>> category = '0'
-        >>> path = root / category / category
+        >>> path = root / category
         >>> path
-        PosixPath('images/innoretvision/eye/airogs/0/0')
+        PosixPath('images/innoretvision/eye/airogs/0')
 
         >>> samples = make_airogs_dataset(path, split='train', split_ratio=0, seed=0)
         >>> samples.head()
              path         split            image_path              label          class_index
-        0  Airogs/0/0     train        Airogs/0/0/TRAIN000000.jpg   NRG             0
-        1  Airogs/0/0     train        Airogs/0/0/TRAIN000175.jpg   NRG             0
-        2  Airogs/0/0     train        Airogs/0/0/TRAIN000109.jpg   NRG             0
-        3  Airogs/0/0     train        Airogs/0/0/TRAIN000298.jpg   NRG             0
-        4  Airogs/0/0     train        Airogs/0/0/TRAIN000309.jpg   NRG             0
+        0  Airogs/0     train        Airogs/0/TRAIN000000.jpg       NRG             0
+        1  Airogs/0     train        Airogs/0/TRAIN000175.jpg       NRG             0
+        2  Airogs/0     train        Airogs/0/TRAIN000109.jpg       NRG             0
+        3  Airogs/0     train        Airogs/0/TRAIN000298.jpg       NRG             0
+        4  Airogs/0     train        Airogs/0/TRAIN000309.jpg       NRG             0
     Returns:
         DataFrame: an output dataframe containing the samples of the dataset.
     """
     if extensions is None:
         extensions = IMG_EXTENSIONS
-    
     root = Path(root)
     root_category = Path(root_category)
 
@@ -113,10 +117,17 @@ def make_airogs_dataset(
     if not csv_file.is_file():
         raise FileNotFoundError(f"Could not found {csv_file}")
     
-    samples_list = pd.read_csv(csv_file,skiprows=1,header=None)
-    samples_list.iloc[0:1] = f"{root_category}" + samples_list.iloc[0:1]
+    samples = pd.read_csv(csv_file)
+    files =  glob.glob(os.path.join(str(root_category), "*.jpg" ))
+    files = [os.path.basename(file)[:-4] for file in files]
+    category_files = pd.DataFrame(files, columns=['challenge_id'])
+    samples = category_files.merge(samples)
+    samples = samples.sample(n=number_of_samples, random_state=1)
     
-    samples = DataFrame(samples_list, columns=["image_path","label"])
+    samples["challenge_id"] = f"{root_category}" + "/" + samples["challenge_id"] + ".jpg"
+    samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
+    samples = samples[["label","image_path"]]
+    
     samples.insert(0,"path",f"{root_category}")
     samples.insert(1,"split","train")
 
@@ -124,13 +135,10 @@ def make_airogs_dataset(
     samples.loc[(samples.label != "NRG"), "label_index"] = LabelName.ABNORMAL
     samples.label_index = samples.label_index.astype(int)
 
-
     if split:
         samples = samples[samples.split == split].reset_index(drop=True)
-
+    samples["mask_path"] = ""
     return samples
-
-
 
 class AirogsDataset(AnomalibDataset):
     """Airogs dataset class.
@@ -143,32 +151,22 @@ class AirogsDataset(AnomalibDataset):
         category (str): Sub-category of the dataset, e.g. '0'
     """
     
-    def __init__(self, root, category: str, task, transform=None):
+    def __init__(self, root, category: str, split, task, transform=None):
         super().__init__(task=task, transform=transform)
-        self.data_dir = Path(root)
-        self.category = category
-        self.root_category = Path(root) / Path(category) / Path(category)
-        self.data_csv = pd.read_csv(self.data_dir / 'train_labels.csv')
-
+        self.root = Path(root)
+        self.category = str(category)
+        self.root_category = Path(root) / Path(self.category)
+        self.data_csv = pd.read_csv(os.path.join(root,'train_labels.csv'))
+        self.split = split
     
     def _setup(self) -> None:
-        for zip_file in self.data_dir.glob('*.zip'):
-            if zip_file = f"{self.category}.zip":
-             extract(zip_file,self.root)
-        
-
-        self.samples = make_airogs_dataset(self.data_dir, self.root_category, split=self.split, extensions=IMG_EXTENSIONS)   
-
-             
-    
-    def __len__(self) -> int:
-        return len(self.data_csv)
-    
-    #def __getitem__(self, index: int) -> dict[str, str | Tensor]:
-       # img_id = self.data_csv.iloc[index, 0]
-       # label = self.data_csv.iloc[index, 1]
-    
-
+        self.samples = make_airogs_dataset(
+            self.root, 
+            self.root_category, 
+            split=self.split, 
+            extensions=IMG_EXTENSIONS,
+            number_of_samples=100
+        )   
 
 class Airogs(AnomalibDataModule):
     """Airogs Datamodule.
@@ -229,7 +227,8 @@ class Airogs(AnomalibDataModule):
         )
 
         self.root = Path(root)
-        self.category = Path(category)
+        self.category = str(category)
+        self.category = Path(self.category)
 
         transform_train = get_transforms(
             config=transform_config_train,
@@ -253,7 +252,16 @@ class Airogs(AnomalibDataModule):
 
     def prepare_data(self) -> None:
         """Download the dataset if not available."""
-        if (self.root / self.category).is_dir():
+        if (self.root / self.category ).is_dir():
             logger.info("Found the dataset.")
         else:
             download_and_extract(self.root, DOWNLOAD_INFO)
+
+if __name__ == "__main__":
+    dataset = AirogsDataset(
+        root="/images/innoretvision/eye/airogs", 
+        category="0", 
+        split="train", 
+        task=TaskType.CLASSIFICATION
+    )
+    dataset._setup()
