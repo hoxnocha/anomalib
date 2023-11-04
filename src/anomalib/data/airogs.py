@@ -5,6 +5,11 @@ Description:
         Lightning DataModule for the Airogs dataset.
     The dataset can be found at https://airogs.grand-challenge.org/
 
+References:
+    de Vente, C., Vermeer, K. A., Jaccard, N., van Ginneken, B., Lemij, H. G., & Sánchez, C. I. (2021). 
+    Rotterdam EyePACS AIROGS train set (1.1.0) [Data set]. IEEE International Symposium on Biomedical Imaging 2022 (ISBI 2022), 
+    Kolkata, Calcutta, India. Zenodo. https://doi.org/10.5281/zenodo.5793241
+
 """
 
 from __future__ import annotations
@@ -36,7 +41,6 @@ from anomalib.data.utils import (
     
 )
 
-import ipdb
 
 logger = logging.getLogger(__name__)
 
@@ -60,29 +64,30 @@ CATEGORIES = (
 
 
 def make_airogs_dataset(
-    root: str | Path, root_category: str | Path , split: str | Split | None = None, extensions: Sequence[str] | None = None, number_of_samples: int = 100
+    root: str | Path, 
+    root_category: str | Path , 
+    split: str | Split | None = None, 
+    extensions: Sequence[str] | None = None, 
+    number_of_samples: int = 100
 ) -> DataFrame:
     """Create airogs samples by parsing the airogs data file structure.
 
     The files are expected to follow the structure:
-        path/to/dataset/category/category/image_filename.jpg
+        path/to/dataset/category/image_filename.jpg
         
     
     This function creates a dataframe to store the parsed information based on the following format:
-    |---|---------------|-------|------------------|------------------|-------------|
-    |   | path          | split |  image_path      |     label        | label_index |
-    |---|---------------|-------|------------------|------------------|-------------|
-    | 0 | datasets/name |  test | filename.jpg     |      RG          |     1       |
-    |---|---------------|-------|------------------|------------------|-------------|
-    | 1 | datasets/name |  test | TRAIN000000.jpg  |     NRG          |     0       |
+    |---|-----------------|-------|------------------------------|------------------|-------------|
+    |   | path            | split |  image_path                  |       label      | label_index |
+    |---|-----------------|-------|------------------------------|------------------|-------------|
+    | 0 | path/to/dataset | train | path/to/dataset/filename.jpg |        NRG       |    0        |
+    |---|-----------------|-------|------------------------------|------------------|-------------|
+
 
     Args:
         root (Path): Path to dataset
         root_category (Path): Path to the category of the dataset
         split (str | Split | None, optional): Dataset split (ie., either train or test). Defaults to None.
-        split_ratio (float, optional): Ratio to split normal training images and add to the
-            test set in case test set doesn't contain any normal images.
-            Defaults to 0.
         seed (int, optional): Random seed to ensure reproducibility when splitting. Defaults to 0.
         create_validation_set (bool, optional): Boolean to create a validation set from the test set.
             Airogs dataset does not contain a validation set. Those wanting to create a validation set
@@ -97,14 +102,14 @@ def make_airogs_dataset(
         >>> path
         PosixPath('images/innoretvision/eye/airogs/0')
 
-        >>> samples = make_airogs_dataset(path, split='train', split_ratio=0, seed=0)
+        >>> samples = make_airogs_dataset(path, split='train',  seed=0, number_of_samples=100)
         >>> samples.head()
-             path         split            image_path              label          class_index
-        0  Airogs/0     train        Airogs/0/TRAIN000000.jpg       NRG             0
-        1  Airogs/0     train        Airogs/0/TRAIN000175.jpg       NRG             0
-        2  Airogs/0     train        Airogs/0/TRAIN000109.jpg       NRG             0
-        3  Airogs/0     train        Airogs/0/TRAIN000298.jpg       NRG             0
-        4  Airogs/0     train        Airogs/0/TRAIN000309.jpg       NRG             0
+             path                               split               image_path                                      label          class_index
+        0  images/innoretvision/eye/airogs/0    train        images/innoretvision/eye/airogs/0 TRAIN000000.jpg       NRG             0
+        1  images/innoretvision/eye/airogs/0    train        images/innoretvision/eye/airogs/0 TRAIN000001.jpg       NRG             0
+        2  images/innoretvision/eye/airogs/0    train        images/innoretvision/eye/airogs/0 TRAIN000002.jpg       NRG             0
+        3  images/innoretvision/eye/airogs/0    train        images/innoretvision/eye/airogs/0 TRAIN000003.jpg       NRG             0
+        4  images/innoretvision/eye/airogs/0    train        images/innoretvision/eye/airogs/0 TRAIN000004.jpg       NRG             0
     Returns:
         DataFrame: an output dataframe containing the samples of the dataset.
     """
@@ -117,6 +122,7 @@ def make_airogs_dataset(
     if not csv_file.is_file():
         raise FileNotFoundError(f"Could not found {csv_file}")
     
+
     samples = pd.read_csv(csv_file)
     files =  glob.glob(os.path.join(str(root_category), "*.jpg" ))
     files = [os.path.basename(file)[:-4] for file in files]
@@ -173,7 +179,7 @@ class Airogs(AnomalibDataModule):
 
     Args:
         root (Path | str): Path to the root of the dataset
-        category (str): Category of the MVTec dataset (e.g. "bottle" or "cable").
+        category (str): Category of the Airogs dataset (e.g. "0" or "1").
         image_size (int | tuple[int, int] | None, optional): Size of the input image.
             Defaults to None.
         center_crop (int | tuple[int, int] | None, optional): When provided, the images will be center-cropped
@@ -257,11 +263,3 @@ class Airogs(AnomalibDataModule):
         else:
             download_and_extract(self.root, DOWNLOAD_INFO)
 
-if __name__ == "__main__":
-    dataset = AirogsDataset(
-        root="/images/innoretvision/eye/airogs", 
-        category="0", 
-        split="train", 
-        task=TaskType.CLASSIFICATION
-    )
-    dataset._setup()
