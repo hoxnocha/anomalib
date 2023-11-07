@@ -13,7 +13,7 @@ import logging
 import torch
 from omegaconf import DictConfig, ListConfig
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from torch import Tensor
+from torch import Tensor, tensor
 
 from anomalib.models.components import AnomalyModule
 from anomalib.models.patchcore.torch_model import PatchcoreModel
@@ -41,10 +41,10 @@ class Patchcore(AnomalyModule):
         layers: list[str],
         pre_trained: bool = True,
         coreset_sampling_ratio: float = 0.1,
-        num_neighbors: int = 9,
+        num_neighbors: int = 9,   
     ) -> None:
         super().__init__()
-
+  
         self.model: PatchcoreModel = PatchcoreModel(
             input_size=input_size,
             backbone=backbone,
@@ -63,7 +63,7 @@ class Patchcore(AnomalyModule):
         """
         return None
 
-    def training_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> None:
+    def training_step(self, batch: dict[str, str | Tensor], batch_idx, *args, **kwargs, ) -> None:
         """Generate feature embedding of the batch.
 
         Args:
@@ -72,8 +72,6 @@ class Patchcore(AnomalyModule):
         Returns:
             dict[str, np.ndarray]: Embedding Vector
         """
-        del args, kwargs  # These variables are not used.
-
         self.model.feature_extractor.eval()
         embedding = self.model(batch["image"])
 
@@ -82,17 +80,36 @@ class Patchcore(AnomalyModule):
         #   values mainly due to the new order of hooks introduced after PL v1.4.0
         #   https://github.com/PyTorchLightning/pytorch-lightning/pull/7357
         self.embeddings.append(embedding)
+        # get batch size
+        batch_size = batch["image"].shape[0]
+        coreset_size = int(batch_size * 3000)
+        
+
+        if batch_idx % 20 == 0 and batch_idx > 0:
+            embeddings = torch.vstack(self.embeddings)
+            current_embedding_size = embeddings.shape[0]
+            if current_embedding_size > coreset_size:
+                # subsample embeddings and adjust output to embedding_size
+                self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size)
+                # update the embeddings
+                self.embeddings = list(self.model.memory_bank)
+                # clean the memory bank
+                self.model.memory_bank = tensor([])
+    
 
     def on_validation_start(self) -> None:
         """Apply subsampling to the embedding collected from the training set."""
         # NOTE: Previous anomalib versions fit subsampling at the end of the epoch.
-        #   This is not possible anymore with PyTorch Lightning v1.4.0 since validation
-        #   is run within train epoch.
+           #This is not possible anymore with PyTorch Lightning v1.4.0 since validation
+           #is run within train epoch.
         logger.info("Aggregating the embedding extracted from the training set.")
         embeddings = torch.vstack(self.embeddings)
-
+        
         logger.info("Applying core-set subsampling to get the embedding.")
-        self.model.subsample_embedding(embeddings, self.coreset_sampling_ratio)
+        self.model.subsample_embedding(
+            embedding=embeddings, sampling_ratio=self.coreset_sampling_ratio) 
+        #self.model.memory_bank = torch.vstack(self.embeddings)
+        
 
     def validation_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> STEP_OUTPUT:
         """Get batch of anomaly maps from input image batch.
@@ -106,7 +123,7 @@ class Patchcore(AnomalyModule):
         """
         # These variables are not used.
         del args, kwargs
-
+        
         # Get anomaly maps and predicted scores from the model.
         output = self.model(batch["image"])
 

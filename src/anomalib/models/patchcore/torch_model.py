@@ -13,7 +13,6 @@ from anomalib.models.components import DynamicBufferModule, FeatureExtractor, KC
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
 
-
 class PatchcoreModel(DynamicBufferModule, nn.Module):
     """Patchcore Module."""
 
@@ -124,7 +123,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         embedding_size = embedding.size(1)
         embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size)
         return embedding
-
+        
     def subsample_embedding(self, embedding: Tensor, sampling_ratio: float) -> None:
         """Subsample embedding based on coreset sampling and store to memory.
 
@@ -132,7 +131,6 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
-
         # Coreset Subsampling
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
         coreset = sampler.sample_coreset()

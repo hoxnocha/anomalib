@@ -29,6 +29,7 @@ from torch import Tensor, feature_alpha_dropout
 from PIL import Image
 from anomalib.data.base import AnomalibDataModule, AnomalibDataset
 from anomalib.data.task_type import TaskType
+import numpy as np
 from anomalib.data.utils import (
     DownloadInfo,
     InputNormalizationMethod,
@@ -68,7 +69,7 @@ def make_airogs_dataset(
     root_category: str | Path , 
     split: str | Split | None = None, 
     extensions: Sequence[str] | None = None, 
-    number_of_samples: int = 100
+    number_of_samples: int = 1000
 ) -> DataFrame:
     """Create airogs samples by parsing the airogs data file structure.
 
@@ -134,15 +135,17 @@ def make_airogs_dataset(
     samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
     samples = samples[["label","image_path"]]
     
+    #ipdb.set_trace()
     samples.insert(0,"path",f"{root_category}")
     samples.insert(1,"split","train")
-
+    samples.loc[samples.label == "RG" ,"split"] = "test"
     samples.loc[(samples.label == "NRG"), "label_index"] = LabelName.NORMAL
     samples.loc[(samples.label != "NRG"), "label_index"] = LabelName.ABNORMAL
     samples.label_index = samples.label_index.astype(int)
 
     if split:
         samples = samples[samples.split == split].reset_index(drop=True)
+    
     samples["mask_path"] = ""
     return samples
 
@@ -171,7 +174,7 @@ class AirogsDataset(AnomalibDataset):
             self.root_category, 
             split=self.split, 
             extensions=IMG_EXTENSIONS,
-            number_of_samples=100
+            number_of_samples=1000
         )   
 
 class Airogs(AnomalibDataModule):
@@ -218,7 +221,7 @@ class Airogs(AnomalibDataModule):
         test_split_mode: TestSplitMode = TestSplitMode.FROM_DIR,
         test_split_ratio: float = 0.2,
         val_split_mode: ValSplitMode = ValSplitMode.SAME_AS_TEST,
-        val_split_ratio: float = 0.5,
+        val_split_ratio: float = 0.2,
         seed: int | None = None,
     ) -> None:
         super().__init__(
@@ -262,4 +265,12 @@ class Airogs(AnomalibDataModule):
             logger.info("Found the dataset.")
         else:
             download_and_extract(self.root, DOWNLOAD_INFO)
+
+#import ipdb
+#if __name__ == "AirogsDataset":
+    #dataset = AirogsDataset(
+        #root="/images/innoretvision/eye/airogs", 
+        #category="0", 
+        #split="split", 
+        #task=TaskType.CLASSIFICATION)
 
