@@ -54,7 +54,7 @@ class Patchcore(AnomalyModule):
         )
         self.coreset_sampling_ratio = coreset_sampling_ratio
         self.embeddings: list[Tensor] = []
-
+        self.most_unique_image = {}
     def configure_optimizers(self) -> None:
         """Configure optimizers.
 
@@ -72,8 +72,20 @@ class Patchcore(AnomalyModule):
         Returns:
             dict[str, np.ndarray]: Embedding Vector
         """
+       # import ipdb; ipdb.set_trace()
+        #features = self.model.pre_feature_extractor(batch["image"])
+         
+       # most_unique_image = self.model.kl_divergence_filter(features, batch)
+       # self.most_unique_image["image_path"].append(most_unique_image["image_path"])
+        #self.most_unique_image["label"].append(most_unique_image["label"])
+        #self.most_unique_image["image"].append(most_unique_image["image"])
+        #self.most_unique_image = self.most_unique_image | most_unique_image
+        
+
         self.model.feature_extractor.eval()
+        #import ipdb; ipdb.set_trace()
         embedding = self.model(batch["image"])
+        
 
         # NOTE: `self.embedding` appends each batch embedding to
         #   store the training set embedding. We manually append these
@@ -81,20 +93,24 @@ class Patchcore(AnomalyModule):
         #   https://github.com/PyTorchLightning/pytorch-lightning/pull/7357
         self.embeddings.append(embedding)
         # get batch size
-        batch_size = batch["image"].shape[0]
-        coreset_size = int(batch_size * 3000)
+        #batch_size = batch["image"].shape[0]
+        #coreset_size = int(batch_size * 3000)
         
 
-        if batch_idx % 20 == 0 and batch_idx > 0:
-            embeddings = torch.vstack(self.embeddings)
-            current_embedding_size = embeddings.shape[0]
-            if current_embedding_size > coreset_size:
-                # subsample embeddings and adjust output to embedding_size
-                self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size)
+        #if batch_idx % 8 == 0 and batch_idx > 0:
+            #embeddings = torch.vstack(self.embeddings)
+            #current_embedding_size = embeddings.shape[0]
+            #if current_embedding_size > coreset_size:
+                 #subsample embeddings and adjust output to embedding_size
+                #self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size) 
                 # update the embeddings
-                self.embeddings = list(self.model.memory_bank)
+                #self.embeddings = list(self.model.memory_bank)
                 # clean the memory bank
-                self.model.memory_bank = tensor([])
+                #self.model.memory_bank = tensor([])
+           
+        
+        
+            
     
 
     def on_validation_start(self) -> None:

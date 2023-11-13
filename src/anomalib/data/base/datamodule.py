@@ -173,7 +173,7 @@ class AnomalibDataModule(LightningDataModule, ABC):
                     _is_setup = True
 
         return _is_setup
-
+    
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         """Get train dataloader."""
         return DataLoader(

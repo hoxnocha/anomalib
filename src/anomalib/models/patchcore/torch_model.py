@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from anomalib.models.components import DynamicBufferModule, FeatureExtractor, KCenterGreedy
+#from anomalib.models.components.cluster.kmeans import KMeans
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
 
@@ -135,6 +136,93 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
         coreset = sampler.sample_coreset()
         self.memory_bank = coreset
+
+    #def kl_divergence_filter(self, feature, batch):
+    # feature_tensor = feature["adaptive_avg_pool2d"]
+    # tensor_size = feature_tensor.shape[0]
+    # kl_divergences = torch.zeros((tensor_size, tensor_size))
+    ## for i in range(tensor_size):
+     # for j in range(i+1, tensor_size):
+      #  feature_i = feature_tensor[i].view(-1)
+      #  feature_j = feature_tensor[j].view(-1)
+
+      ##  kl_divergences[i,j] = F.kl_div(F.softmax(feature_i,dim=0).log(), F.softmax(feature_j,dim=0))
+       # kl_divergences[j,i] = F.kl_div(F.softmax(feature_j,dim=0).log(), F.softmax(feature_i,dim=0))
+    
+    # average_kl_divergences = torch.mean(kl_divergences, dim=1)
+    # most_unique_idx = torch.argmax(average_kl_divergences)
+    # most_unique_data = batch[most_unique_idx]
+
+     #return most_unique_data
+    
+    #def kl_divengence_subsample(self, embedding: Tensor):
+        #import ipdb; ipdb.set_trace()
+       # tensor_size = embedding.shape[0]
+       # kl_divergences = torch.zeros((tensor_size, tensor_size))
+       # for i in range(tensor_size):
+         ## for j in range(i+1, tensor_size):
+          ## feature_i = embedding[i].view(-1)
+          # feature_j = embedding[j].view(-1)
+
+          # kl_divergences[i,j] = F.kl_div(F.softmax(feature_i,dim=0).log(), F.softmax(feature_j,dim=0))
+          # kl_divergences[j,i] = F.kl_div(F.softmax(feature_j,dim=0).log(), F.softmax(feature_i,dim=0))
+    
+        #average_kl_divergences = torch.mean(kl_divergences, dim=1)
+       # most_unique_idx = torch.argmax(average_kl_divergences)
+       # self.memory_bank = embedding[0][most_unique_idx]
+
+    
+    #def kmeans_embedding(self, embedding, num_clusters: int) :
+       # """Subsample embedding based on coreset sampling and store to memory.
+
+       # Args:
+            #embedding (np.ndarray): Embedding tensor from the CNN
+            #sampling_ratio (float): Coreset sampling ratio
+        #"""
+        # Coreset Subsampling
+        #kmeans = KMeans(n_clusters=num_clusters)
+        #kmeans.fit(embedding)
+        #import ipdb; ipdb.set_trace()
+        #clusters_centers = kmeans.cluster_centers_
+        #labels = kmeans.labels_
+        #distances = [torch.cdist(embedding[i].unsqueeze(1), clusters_centers[labels[i]].unsqueeze(1)) for i in range(len(embedding))] 
+        #unique_embedding = [embedding[i] for i in range(len(embedding)) if distances[i] > 0.5]
+        #return unique_embedding
+
+    #def find_least_similiar_embeddings(self, embedding, num_bins:int) -> list[Tensor]:
+        #"""Find the most special embeddings in the memory bank.
+
+        #Args:
+            #embedding (list[Tensor]): Embedding tensor from the CNN
+            #num_bins (int): Number of bins to divide the embedding space into
+
+        #Returns:
+           # list[Tensor]: Embeddings that are most special
+       # """
+        #embedding = torch.vstack(embedding)
+        #hist, bin_edges = torch.histc(embedding, bins=num_bins)
+        #least_similiar_bins = torch.argmin(hist)
+        #least_similiar_embedding = []
+        #for i in range(len(self.embedding)):
+            #if bin_edges[i] <= least_similiar_bins[i] <= bin_edges[i+1]:    
+                #least_similiar_embedding.append(self.embedding[i])
+        
+        #least_similiar_embedding = torch.stack(least_similiar_embedding)
+        #return least_similiar_embedding
+    
+    #def get_unique_embedding(self, embedding) :
+        
+        #distances = torch.mm(embedding, embedding.t())
+        #unique_embedding = embedding[distances.max(dim=1) == distances.max(dim=1)[0]]
+        #return unique_embedding
+
+    #def get_unfimiliar_embedding(self, embedding) :
+        #import ipdb; ipdb.set_trace()
+        #dist_matrix = torch.mm(embedding ** 2, torch.ones(embedding.shape[1], embedding.shape[0])) + torch.mm(embedding ** 2, torch.ones(embedding.shape[1], embedding.shape[0])).t() - 2 * torch.mm(embedding, embedding.t())
+        #max_idx = torch.argmax(dist_matrix, dim=1)  
+        #unfimiliar_embedding = embedding[max_idx]
+        #return unfimiliar_embedding
+
 
     @staticmethod
     def euclidean_dist(x: Tensor, y: Tensor) -> Tensor:

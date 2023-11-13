@@ -240,6 +240,8 @@ def get_datamodule(config: DictConfig | ListConfig) -> AnomalibDataModule:
         datamodule = Airogs(
             root=config.dataset.path,
             category=config.dataset.category,
+            number_of_samples=config.dataset.number_of_samples,
+            pre_selection=config.dataset.pre_selection,
             image_size=(config.dataset.image_size[0], config.dataset.image_size[1]),
             center_crop=center_crop,
             normalization=config.dataset.normalization,

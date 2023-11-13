@@ -66,10 +66,13 @@ CATEGORIES = (
 
 def make_airogs_dataset(
     root: str | Path, 
-    root_category: str | Path , 
+    root_category: str | Path ,
+    number_of_samples,
+    pre_selection  ,
     split: str | Split | None = None, 
     extensions: Sequence[str] | None = None, 
-    number_of_samples: int = 1000
+    
+    
 ) -> DataFrame:
     """Create airogs samples by parsing the airogs data file structure.
 
@@ -114,6 +117,11 @@ def make_airogs_dataset(
     Returns:
         DataFrame: an output dataframe containing the samples of the dataset.
     """
+    
+
+
+     
+    
     if extensions is None:
         extensions = IMG_EXTENSIONS
     root = Path(root)
@@ -135,18 +143,35 @@ def make_airogs_dataset(
     samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
     samples = samples[["label","image_path"]]
     
-    #ipdb.set_trace()
+     #ipdb.set_trace()
     samples.insert(0,"path",f"{root_category}")
     samples.insert(1,"split","train")
     samples.loc[samples.label == "RG" ,"split"] = "test"
     samples.loc[(samples.label == "NRG"), "label_index"] = LabelName.NORMAL
     samples.loc[(samples.label != "NRG"), "label_index"] = LabelName.ABNORMAL
     samples.label_index = samples.label_index.astype(int)
-
+    samples["mask_path"] = ""
+    #import ipdb;ipdb.set_trace()
+    if pre_selection == True:
+        filted_rows = samples[samples["label"] == "RG"]
+        select_csv_file = Path("/home/students/tyang/Documents/new_trainingdata.csv")
+        selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
+        selected_samples.insert(1,"label","NRG")
+        #selected_samples = selected_samples[["label","image_path"]]
+        selected_samples.insert(0,"path",f"{root_category}")
+        selected_samples.insert(1,"split","train")
+    
+        selected_samples.loc[(selected_samples.label == "NRG"), "label_index"] = LabelName.NORMAL
+        selected_samples.loc[(selected_samples.label != "NRG"), "label_index"] = LabelName.ABNORMAL
+        selected_samples.label_index = selected_samples.label_index.astype(int)
+        selected_samples["mask_path"] = ""
+        dfs = [selected_samples, filted_rows]
+        samples = pd.concat(dfs)
+        
     if split:
         samples = samples[samples.split == split].reset_index(drop=True)
     
-    samples["mask_path"] = ""
+    
     return samples
 
 class AirogsDataset(AnomalibDataset):
@@ -160,21 +185,31 @@ class AirogsDataset(AnomalibDataset):
         category (str): Sub-category of the dataset, e.g. '0'
     """
     
-    def __init__(self, root, category: str, split, task, transform=None):
+    def __init__(self, root, category: str, number_of_samples, pre_selection , split, task, transform=None,):
         super().__init__(task=task, transform=transform)
         self.root = Path(root)
         self.category = str(category)
         self.root_category = Path(root) / Path(self.category)
-        self.data_csv = pd.read_csv(os.path.join(root,'train_labels.csv'))
+        self.number_of_samples = number_of_samples
+        #self.data_csv = pd.read_csv(os.path.join(root,'train_labels.csv'))
+        
+        self.pre_selection = pre_selection
+        #self.pre_selection_csv = pre_select_csv
+        
         self.split = split
     
     def _setup(self) -> None:
         self.samples = make_airogs_dataset(
             self.root, 
-            self.root_category, 
-            split=self.split, 
+            self.root_category,
+            self.number_of_samples, 
+            self.pre_selection,
+            #self.pre_selection_csv,
+            split=self.split,
             extensions=IMG_EXTENSIONS,
-            number_of_samples=1000
+           
+            
+
         )   
 
 class Airogs(AnomalibDataModule):
@@ -209,6 +244,8 @@ class Airogs(AnomalibDataModule):
         self,
         root: Path | str,
         category: str,
+        number_of_samples,
+        pre_selection,
         image_size: int | tuple[int, int] | None = None,
         center_crop: int | tuple[int, int] | None = None,
         normalization: str | InputNormalizationMethod = InputNormalizationMethod.IMAGENET,
@@ -223,6 +260,7 @@ class Airogs(AnomalibDataModule):
         val_split_mode: ValSplitMode = ValSplitMode.SAME_AS_TEST,
         val_split_ratio: float = 0.2,
         seed: int | None = None,
+        
     ) -> None:
         super().__init__(
             train_batch_size=train_batch_size,
@@ -253,10 +291,23 @@ class Airogs(AnomalibDataModule):
         )
 
         self.train_data = AirogsDataset(
-            task=task, transform=transform_train, split=Split.TRAIN, root=root, category=category
+            root=root,
+            category=category,
+            number_of_samples=number_of_samples,
+            pre_selection=pre_selection,
+            task=task,
+            transform=transform_train,
+            split=Split.TRAIN,
+            
         )
         self.test_data = AirogsDataset(
-            task=task, transform=transform_eval, split=Split.TEST, root=root, category=category
+            root=root,
+            category=category,
+            number_of_samples=number_of_samples,
+            pre_selection=pre_selection,
+            task=task,
+            transform=transform_eval,
+            split=Split.TEST,
         )
 
     def prepare_data(self) -> None:
@@ -271,6 +322,8 @@ class Airogs(AnomalibDataModule):
     #dataset = AirogsDataset(
         #root="/images/innoretvision/eye/airogs", 
         #category="0", 
+        #number_of_samples=100,
+        #pre_selection=True,
         #split="split", 
         #task=TaskType.CLASSIFICATION)
 

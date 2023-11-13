@@ -4,8 +4,8 @@ dataset:
   path: /home/students/tyang/airogs 
   task: classification # options: [classification, segmentation]
   category: 0
-  number_of_samples: 17999
-  pre_selection: False
+  pre_selection: True
+  number_of_samples: 300
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8
@@ -19,6 +19,7 @@ dataset:
   test_split_ratio: 0.2 # fraction of train images held out testing (usage depends on test_split_mode)
   val_split_mode: same_as_test # options: [same_as_test, from_test, synthetic]
   val_split_ratio: 0.2 # fraction of train/test images held out for validation (usage depends on val_split_mode)
+
   tiling:
     apply: false
     tile_size: null
