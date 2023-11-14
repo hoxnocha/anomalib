@@ -93,20 +93,20 @@ class Patchcore(AnomalyModule):
         #   https://github.com/PyTorchLightning/pytorch-lightning/pull/7357
         self.embeddings.append(embedding)
         # get batch size
-        #batch_size = batch["image"].shape[0]
-        #coreset_size = int(batch_size * 3000)
+        batch_size = batch["image"].shape[0]
+        coreset_size = int(batch_size * 2000)
         
 
-        #if batch_idx % 8 == 0 and batch_idx > 0:
-            #embeddings = torch.vstack(self.embeddings)
-            #current_embedding_size = embeddings.shape[0]
-            #if current_embedding_size > coreset_size:
+        if batch_idx % 8 == 0 and batch_idx > 0:
+            embeddings = torch.vstack(self.embeddings)
+            current_embedding_size = embeddings.shape[0]
+            if current_embedding_size > coreset_size:
                  #subsample embeddings and adjust output to embedding_size
-                #self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size) 
+                self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size) 
                 # update the embeddings
-                #self.embeddings = list(self.model.memory_bank)
+                self.embeddings = list(self.model.memory_bank)
                 # clean the memory bank
-                #self.model.memory_bank = tensor([])
+                self.model.memory_bank = tensor([])
            
         
         
