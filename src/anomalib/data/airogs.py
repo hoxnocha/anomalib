@@ -137,7 +137,7 @@ def make_airogs_dataset(
     files = [os.path.basename(file)[:-4] for file in files]
     category_files = pd.DataFrame(files, columns=['challenge_id'])
     samples = category_files.merge(samples)
-    samples = samples.sample(n=number_of_samples, random_state=1)
+    
     
     samples["challenge_id"] = f"{root_category}" + "/" + samples["challenge_id"] + ".jpg"
     samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
@@ -154,7 +154,7 @@ def make_airogs_dataset(
     #import ipdb;ipdb.set_trace()
     if pre_selection == True:
         filted_rows = samples[samples["label"] == "RG"]
-        select_csv_file = Path("/home/students/tyang/Documents/new_trainingdata.csv")
+        select_csv_file = Path("/home/students/tyang/Documents/cpr_trainingdata.csv")
         selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
         selected_samples.insert(1,"label","NRG")
         #selected_samples = selected_samples[["label","image_path"]]
@@ -168,8 +168,12 @@ def make_airogs_dataset(
         dfs = [selected_samples, filted_rows]
         samples = pd.concat(dfs)
         
+    samples = samples.sample(n=number_of_samples, random_state=1)
+    
+    
     if split:
         samples = samples[samples.split == split].reset_index(drop=True)
+        
     
     
     return samples

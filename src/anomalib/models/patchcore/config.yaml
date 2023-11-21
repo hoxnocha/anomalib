@@ -6,7 +6,7 @@ dataset:
   category: 0
   number_of_samples: 17999
   pre_selection: False
-  train_batch_size: 16
+  train_batch_size: 1000
   eval_batch_size: 32
   num_workers: 8
   image_size: 256 # dimensions to which images are resized (mandatory)

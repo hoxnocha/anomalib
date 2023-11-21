@@ -5,7 +5,7 @@ dataset:
   task: classification # options: [classification, segmentation]
   category: 0
   pre_selection: True
-  number_of_samples: 300
+  number_of_samples: 900
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8
@@ -61,7 +61,7 @@ visualization:
 
 project:
   seed: 0
-  path: ./results
+  path: /work/scratch/tyang/anomalib/
 
 logging:
   logger: [] # options: [comet, tensorboard, wandb, csv] or combinations.

@@ -136,7 +136,6 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
         coreset = sampler.sample_coreset()
         self.memory_bank = coreset
-
     #def kl_divergence_filter(self, feature, batch):
     # feature_tensor = feature["adaptive_avg_pool2d"]
     # tensor_size = feature_tensor.shape[0]
