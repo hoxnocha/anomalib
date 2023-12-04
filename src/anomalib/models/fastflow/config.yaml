@@ -1,9 +1,11 @@
 dataset:
-  name: mvtec
-  format: mvtec
-  path: ./datasets/MVTec
-  task: segmentation
-  category: bottle
+  name: airogs
+  format: airogs
+  path: /home/students/tyang/airogs
+  task: classification # options: [classification, segmentation]
+  category: 0
+  number_of_samples: 17999
+  pre_selection: false
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8

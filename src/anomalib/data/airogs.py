@@ -53,7 +53,7 @@ DOWNLOAD_INFO = DownloadInfo(
     hash="md5:9af51fcaa069c9f0d61dd2cd4e1c05b4",
 )
 
-CATEGORIES = (
+AIROGS_CATEGORIES = (
     "0",
     "1",
     "2",
@@ -63,7 +63,7 @@ CATEGORIES = (
 )
 
 
-
+import ipdb
 def make_airogs_dataset(
     root: str | Path, 
     root_category: str | Path ,
@@ -143,7 +143,7 @@ def make_airogs_dataset(
     samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
     samples = samples[["label","image_path"]]
     
-     #ipdb.set_trace()
+    
     samples.insert(0,"path",f"{root_category}")
     samples.insert(1,"split","train")
     samples.loc[samples.label == "RG" ,"split"] = "test"
@@ -151,10 +151,13 @@ def make_airogs_dataset(
     samples.loc[(samples.label != "NRG"), "label_index"] = LabelName.ABNORMAL
     samples.label_index = samples.label_index.astype(int)
     samples["mask_path"] = ""
-    #import ipdb;ipdb.set_trace()
+    
     if pre_selection == True:
+        #ipdb.set_trace()
         filted_rows = samples[samples["label"] == "RG"]
-        select_csv_file = Path("/home/students/tyang/Documents/cpr_trainingdata.csv")
+        rg_ratio = filted_rows.shape[0] / samples.shape[0]
+        filted_rows = filted_rows.sample(n=int(rg_ratio * number_of_samples ), random_state=1)
+        select_csv_file = Path("/home/students/tyang/Documents/no_robust_cpr_869trainingdata.csv")
         selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
         selected_samples.insert(1,"label","NRG")
         #selected_samples = selected_samples[["label","image_path"]]
@@ -203,6 +206,7 @@ class AirogsDataset(AnomalibDataset):
         self.split = split
     
     def _setup(self) -> None:
+        #ipdb.set_trace()
         self.samples = make_airogs_dataset(
             self.root, 
             self.root_category,
@@ -321,13 +325,14 @@ class Airogs(AnomalibDataModule):
         else:
             download_and_extract(self.root, DOWNLOAD_INFO)
 
-#import ipdb
-#if __name__ == "AirogsDataset":
-    #dataset = AirogsDataset(
-        #root="/images/innoretvision/eye/airogs", 
-        #category="0", 
-        #number_of_samples=100,
-        #pre_selection=True,
-        #split="split", 
-        #task=TaskType.CLASSIFICATION)
+
+if __name__ == "AirogsDataset":
+    #import ipdb; ipdb.set_trace()
+    dataset = AirogsDataset(
+        root="/images/innoretvision/eye/airogs", 
+        category="0", 
+        number_of_samples=1300,
+        pre_selection=True,
+        split="split", 
+        task=TaskType.CLASSIFICATION)
 

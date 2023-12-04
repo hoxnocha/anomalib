@@ -4,11 +4,13 @@ dataset:
   path: /home/students/tyang/airogs
   category: 0
   task: classification # options: [classification, segmentation]
+  number_of_samples: 1300
+  pre_selection: true
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8
   image_size: 256 # dimensions to which images are resized (mandatory)
-  center_crop: null # dimensions to which images are center-cropped after resizing (optional)
+  center_crop: 224 # dimensions to which images are center-cropped after resizing (optional)
   normalization: imagenet # data distribution to which the images will be normalized: [none, imagenet]
   transform_config:
     train: null
@@ -56,7 +58,7 @@ visualization:
 
 project:
   seed: 42
-  path: ./results
+  path: /home/students/tyang/anomalib/results
 
 logging:
   logger: [] # options: [comet, tensorboard, wandb, csv] or combinations.

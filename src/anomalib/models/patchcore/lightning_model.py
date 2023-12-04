@@ -80,11 +80,14 @@ class Patchcore(AnomalyModule):
         #self.most_unique_image["label"].append(most_unique_image["label"])
         #self.most_unique_image["image"].append(most_unique_image["image"])
         #self.most_unique_image = self.most_unique_image | most_unique_image
+    
         
-
+        #import ipdb; ipdb.set_trace()
         self.model.feature_extractor.eval()
         #import ipdb; ipdb.set_trace()
-        embedding = self.model(batch["image"])
+        crop = self.model.crop_disc_2(batch["image"])
+        
+        embedding = self.model(crop)
         
 
         # NOTE: `self.embedding` appends each batch embedding to
@@ -94,19 +97,19 @@ class Patchcore(AnomalyModule):
         self.embeddings.append(embedding)
         # get batch size
         #batch_size = batch["image"].shape[0]
-        #coreset_size = int(batch_size * 4000)
+        #coreset_size = int(batch_size * 5000)
         
 
         #if batch_idx % 8 == 0 and batch_idx > 0:
-         #   embeddings = torch.vstack(self.embeddings)
-           # current_embedding_size = embeddings.shape[0]
-          #  if current_embedding_size > coreset_size:
+           # embeddings = torch.vstack(self.embeddings)
+            #current_embedding_size = embeddings.shape[0]
+            #if current_embedding_size > coreset_size:
                  #subsample embeddings and adjust output to embedding_size
-            #    self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size) 
+               #self.model.subsample_embedding(embeddings, coreset_size / current_embedding_size) 
                 # update the embeddings
-             #   self.embeddings = list(self.model.memory_bank)
+               #self.embeddings = list(self.model.memory_bank)
                 # clean the memory bank
-              #  self.model.memory_bank = tensor([])
+               #self.model.memory_bank = tensor([])
            
         
         
@@ -141,7 +144,9 @@ class Patchcore(AnomalyModule):
         del args, kwargs
         
         # Get anomaly maps and predicted scores from the model.
-        output = self.model(batch["image"])
+        crop_out = self.model.crop_disc(batch["image"])
+        #import ipdb; ipdb.set_trace()
+        output = self.model(crop_out)
 
         # Add anomaly maps and predicted scores to the batch.
         batch["anomaly_maps"] = output["anomaly_map"]

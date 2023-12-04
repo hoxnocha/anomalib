@@ -1,9 +1,11 @@
 dataset:
-  name: mvtec
-  format: mvtec
-  path: ./datasets/MVTec
-  category: bottle
-  task: segmentation
+  name: airogs
+  format: airogs
+  path: /home/students/tyang/airogs
+  number_of_samples: 1300
+  pre_selection: false
+  category: 0
+  task: classification # options: [classification, segmentation]
   train_batch_size: 16
   eval_batch_size: 16
   inference_batch_size: 16
@@ -61,7 +63,7 @@ visualization:
 
 project:
   seed: 0
-  path: ./results
+  path: /home/students/tyang/anomalib/results
 
 logging:
   logger: [] # options: [comet, tensorboard, wandb, csv] or combinations.

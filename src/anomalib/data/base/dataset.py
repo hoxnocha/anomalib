@@ -182,3 +182,33 @@ class AnomalibDataset(Dataset, ABC):
         |---|-------------------|-----------|-------------|------------------|-------|
         """
         raise NotImplementedError
+
+    def augment_train_set(self, dirpath: str, augmentation_transforms: A.Compose, number_transforms: int):
+        augmented_images_info = []
+
+        for index in range(len(self._samples)):
+            for num in range(number_transforms):
+                image_path = self._samples.iloc[index].image_path
+                mask_path = self._samples.iloc[index].mask_path
+                label = self._samples.iloc[index].label
+                label_index = self._samples.iloc[index].label_index
+
+                if label_index != 0:
+                    raise ValueError("Augmentations currently only supported on healthy train samples")
+
+                image = read_image(image_path)
+
+                transformed = augmentation_transforms(image=image)
+
+                augmented_image_path = dirpath + f"/{Path(image_path).stem}_augmented_{num}.png"
+
+                cv2.imwrite(augmented_image_path, transformed["image"])
+
+                augmented_images_info.append(
+                    dict(
+                        image_path=str(augmented_image_path), mask_path=mask_path, label=label, label_index=label_index
+                    )
+                )
+
+        # append examples to the dataframe
+        self._samples = pd.concat([self._samples, pd.DataFrame(augmented_images_info)], ignore_index=True)

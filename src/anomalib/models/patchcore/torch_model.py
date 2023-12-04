@@ -4,15 +4,28 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
-
+import antialiased_cnns
+import timm
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+from antialiased_cnns.blurpool import BlurPool
+from timm.models.registry import list_models as list_models_timm
+from torchvision.models import get_model_builder, get_model_weights
+from torchvision.models import list_models as list_models_torch
+from torchvision.models.feature_extraction import create_feature_extractor
+from anomalib.models.components.filters import GaussianBlur2d
+import torchvision.transforms as transforms
 
 from anomalib.models.components import DynamicBufferModule, FeatureExtractor, KCenterGreedy
-#from anomalib.models.components.cluster.kmeans import KMeans
+
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
+
+
+MODELS_TIMM = list_models_timm()
+MODELS_TORCH = list_models_torch()
+
 
 class PatchcoreModel(DynamicBufferModule, nn.Module):
     """Patchcore Module."""
@@ -32,8 +45,39 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         self.layers = layers
         self.input_size = input_size
         self.num_neighbors = num_neighbors
+        
+        if self.backbone in MODELS_TORCH:
+            print(f"Loading model {self.backbone} from torchvision")
+            _model_builder = get_model_builder(self.backbone)
+            _model_weights = get_model_weights(self.backbone)
+            model = _model_builder(weights=_model_weights.DEFAULT)
+        elif self.backbone in MODELS_TIMM:
+            print(f"Loading model {self.backbone} from timm")
+            model = timm.create_model(self.backbone, pretrained=True)
 
-        self.feature_extractor = FeatureExtractor(backbone=self.backbone, pre_trained=pre_trained, layers=self.layers)
+        # loading anti-aliased models from antialiased-cnns
+        elif self.backbone == "antialiased_wide_resnet50_2" or backbone == "antialiased_wide_resnet50_2_384":
+            print(f"Loading model {self.backbone} from antialias_cnn")
+            model = antialiased_cnns.wide_resnet50_2(pretrained=True)
+        elif self.backbone == "antialiased_wide_resnet101_2":
+            print(f"Loading model {self.backbone} from antialias_cnn")
+            model = antialiased_cnns.wide_resnet101_2(pretrained=True)
+        elif self.backbone == "antialiased_resnet18":
+            print(f"Loading model {self.backbone} from antialias_cnn")
+            model = antialiased_cnns.resnet18(pretrained=True)
+        elif self.backbone == "antialiased_resnet50":
+            print(f"Loading model {self.backbone} from antialias_cnn")
+            model = antialiased_cnns.resnet50(pretrained=True)
+        else:
+            raise ValueError(f"Model {self.backbone} not found")
+        
+        self.feature_extractor = create_feature_extractor(
+            model=model,
+            return_nodes={layer: layer for layer in self.layers},
+            tracer_kwargs={"leaf_modules": [BlurPool]},  # for models comes from antialias
+        )
+        self.feature_extractor.eval()
+        
         self.feature_pooler = torch.nn.AvgPool2d(3, 1, 1)
         self.anomaly_map_generator = AnomalyMapGenerator(input_size=input_size)
 
@@ -221,7 +265,100 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         #max_idx = torch.argmax(dist_matrix, dim=1)  
         #unfimiliar_embedding = embedding[max_idx]
         #return unfimiliar_embedding
+    def crop_disc(self, input_tensor: Tensor, ):
+        """Crop the disc from the input tensor.
 
+        Args:
+            input_tensor (Tensor): Input tensor
+
+        Returns:
+            Tensor: Cropped disc
+
+        """
+        #import ipdb; ipdb.set_trace()
+        batch_size, channels, height, width = input_tensor.shape
+        crop_size = 240
+        gray = transforms.Grayscale(num_output_channels=1)(input_tensor)
+        gaussian_gray = transforms.functional.gaussian_blur(gray, kernel_size=23, sigma=1.5)
+        
+        max_values,max_indices = torch.max(gaussian_gray.view(gaussian_gray.shape[0],-1),dim=1)
+
+        max_coordinates = torch.stack([max_indices % gaussian_gray.shape[-1], max_indices // gaussian_gray.shape[-1]], dim=1)
+        cropped_images = []
+        for i in range(batch_size):
+          start_y = max(0, int(max_coordinates[i, 1]) - crop_size // 2)
+          end_y = min(int(max_coordinates[i, 1]) + crop_size // 2, height)
+          start_x = max(0, int(max_coordinates[i, 0]) - crop_size // 2)
+          end_x = min(int(max_coordinates[i, 0]) + crop_size // 2, width)
+    
+          cropped_image = input_tensor[i, : ,start_y:end_y ,start_x:end_x,]
+          cropped_images.append(cropped_image)
+        
+
+        max_height = max(t.shape[1] for t in cropped_images)
+        max_width = max(t.shape[2] for t in cropped_images)
+        padded_tensors = [F.pad(t, (0, max_width - t.shape[2], 0, max_height - t.shape[1])) for t in cropped_images]
+        cropped_images_t = torch.stack(padded_tensors)
+        cropped_images_t = cropped_images_t.to(dtype=torch.float32)
+        return cropped_images_t
+        
+    def crop_disc_2(self, input_tensor: Tensor, ):
+        """Crop the disc from the input tensor.
+
+        Args:
+            input_tensor (Tensor): Input tensor
+
+        Returns:
+            Tensor: Cropped disc
+
+        """
+        
+        #import ipdb; ipdb.set_trace()
+
+        batch_size, channels, height, width = input_tensor.shape
+        crop_size = 240
+        gray = transforms.Grayscale(num_output_channels=1)(input_tensor)
+        blurred = transforms.functional.gaussian_blur(gray, kernel_size=23, sigma=1.5)
+        
+        # Use adaptive thresholding to create a binary mask
+        thresholded = torch.where(blurred > blurred.mean(), torch.tensor(1.0), torch.tensor(0.0))
+
+         # Find contours using Sobel operator
+        sobel_x = F.conv2d(thresholded, torch.cuda.FloatTensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]).view(1, 1, 3, 3), padding=1)
+        sobel_y = F.conv2d(thresholded, torch.cuda.FloatTensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]).view(1, 1, 3, 3), padding=1)
+        gradient_magnitude = torch.sqrt(sobel_x**2 + sobel_y**2)
+
+          # Use non-maximum suppression to get thin edges
+        non_max_suppressed = gradient_magnitude * (gradient_magnitude == F.max_pool2d(gradient_magnitude, kernel_size=3, stride=1, padding=1))
+
+       # Apply a threshold to get a binary edge map
+        edge_map = torch.where(non_max_suppressed > non_max_suppressed.mean(), torch.tensor(1.0), torch.tensor(0.0))
+
+        result_tensor = blurred * (1 - edge_map)
+
+        
+        max_values,max_indices = torch.max(result_tensor.view(result_tensor.shape[0],-1),dim=1)
+
+        max_coordinates = torch.stack([max_indices % result_tensor.shape[-1], max_indices // result_tensor.shape[-1]], dim=1)
+        cropped_images = []
+        for i in range(batch_size):
+          start_y = max(0, int(max_coordinates[i, 1]) - crop_size // 2)
+          end_y = min(int(max_coordinates[i, 1]) + crop_size // 2, height)
+          start_x = max(0, int(max_coordinates[i, 0]) - crop_size // 2)
+          end_x = min(int(max_coordinates[i, 0]) + crop_size // 2, width)
+    
+          cropped_image = input_tensor[i, : ,start_y:end_y ,start_x:end_x,]
+          cropped_images.append(cropped_image)
+        
+
+        filtered_tensors = [tensor for tensor in cropped_images if tensor.shape[1] > crop_size -90 and tensor.shape[2] > crop_size - 90]
+        max_height = max(t.shape[1] for t in cropped_images)
+        max_width = max(t.shape[2] for t in cropped_images)
+        padded_tensors = [F.pad(t, (0, max_width - t.shape[2], 0, max_height - t.shape[1])) for t in filtered_tensors]
+        stacked_tensor = torch.stack(padded_tensors)
+        return stacked_tensor
+        
+        
 
     @staticmethod
     def euclidean_dist(x: Tensor, y: Tensor) -> Tensor:
