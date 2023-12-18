@@ -194,8 +194,8 @@ def read_image(path: str | Path, image_size: int | tuple[int, int] | None = None
         image as numpy array
     """
     path = path if isinstance(path, str) else str(path)
-    image = cv2.imread(path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv2.imread(path)    
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     if image_size:
         # This part is optional, where the user wants to quickly resize the image

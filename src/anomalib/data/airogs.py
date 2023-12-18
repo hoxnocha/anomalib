@@ -157,7 +157,7 @@ def make_airogs_dataset(
         filted_rows = samples[samples["label"] == "RG"]
         rg_ratio = filted_rows.shape[0] / samples.shape[0]
         filted_rows = filted_rows.sample(n=int(rg_ratio * number_of_samples ), random_state=1)
-        select_csv_file = Path("/home/students/tyang/Documents/no_robust_cpr_869trainingdata.csv")
+        select_csv_file = Path("/home/students/tyang/Documents/no_robust_near1003od.csv")
         selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
         selected_samples.insert(1,"label","NRG")
         #selected_samples = selected_samples[["label","image_path"]]
@@ -318,21 +318,21 @@ class Airogs(AnomalibDataModule):
             split=Split.TEST,
         )
 
-    def prepare_data(self) -> None:
-        """Download the dataset if not available."""
-        if (self.root / self.category ).is_dir():
-            logger.info("Found the dataset.")
-        else:
-            download_and_extract(self.root, DOWNLOAD_INFO)
+    #def prepare_data(self) -> None:
+        #"""Download the dataset if not available."""
+        #if (self.root / self.category ).is_dir():
+           # logger.info("Found the dataset.")
+        #else:
+           # download_and_extract(self.root, DOWNLOAD_INFO)
 
 
-if __name__ == "AirogsDataset":
+#if __name__ == "AirogsDataset":
     #import ipdb; ipdb.set_trace()
-    dataset = AirogsDataset(
-        root="/images/innoretvision/eye/airogs", 
-        category="0", 
-        number_of_samples=1300,
-        pre_selection=True,
-        split="split", 
-        task=TaskType.CLASSIFICATION)
+    #dataset = AirogsDataset(
+       # root="/images/innoretvision/eye/airogs", 
+        #category="0", 
+        #number_of_samples=1300,
+       # pre_selection=True,
+       # split="split", 
+       # task=TaskType.CLASSIFICATION)
 

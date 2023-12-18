@@ -54,7 +54,6 @@ class Patchcore(AnomalyModule):
         )
         self.coreset_sampling_ratio = coreset_sampling_ratio
         self.embeddings: list[Tensor] = []
-        self.most_unique_image = {}
     def configure_optimizers(self) -> None:
         """Configure optimizers.
 
@@ -75,19 +74,11 @@ class Patchcore(AnomalyModule):
        # import ipdb; ipdb.set_trace()
         #features = self.model.pre_feature_extractor(batch["image"])
          
-       # most_unique_image = self.model.kl_divergence_filter(features, batch)
-       # self.most_unique_image["image_path"].append(most_unique_image["image_path"])
-        #self.most_unique_image["label"].append(most_unique_image["label"])
-        #self.most_unique_image["image"].append(most_unique_image["image"])
-        #self.most_unique_image = self.most_unique_image | most_unique_image
-    
-        
-        #import ipdb; ipdb.set_trace()
         self.model.feature_extractor.eval()
-        #import ipdb; ipdb.set_trace()
-        crop = self.model.crop_disc_2(batch["image"])
+        #output = self.model.crop(batch["image"])
+
         
-        embedding = self.model(crop)
+        embedding = self.model(batch["image"])
         
 
         # NOTE: `self.embedding` appends each batch embedding to
@@ -97,11 +88,11 @@ class Patchcore(AnomalyModule):
         self.embeddings.append(embedding)
         # get batch size
         #batch_size = batch["image"].shape[0]
-        #coreset_size = int(batch_size * 5000)
+       # coreset_size = int(batch_size * 4000)
         
 
         #if batch_idx % 8 == 0 and batch_idx > 0:
-           # embeddings = torch.vstack(self.embeddings)
+            #embeddings = torch.vstack(self.embeddings)
             #current_embedding_size = embeddings.shape[0]
             #if current_embedding_size > coreset_size:
                  #subsample embeddings and adjust output to embedding_size
@@ -144,9 +135,10 @@ class Patchcore(AnomalyModule):
         del args, kwargs
         
         # Get anomaly maps and predicted scores from the model.
-        crop_out = self.model.crop_disc(batch["image"])
+        #
+        #crop_out = self.model.od_inference(batch["image"])
         #import ipdb; ipdb.set_trace()
-        output = self.model(crop_out)
+        output = self.model(batch["image"])
 
         # Add anomaly maps and predicted scores to the batch.
         batch["anomaly_maps"] = output["anomaly_map"]

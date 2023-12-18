@@ -1,24 +1,26 @@
 dataset:
-  name: airogs
-  format: airogs
-  path: /home/students/tyang/airogs
-  task: classification # options: [classification, segmentation]
-  category: 0
-  number_of_samples: 900
-  pre_selection: True
+  name: idrid
+  format: folder
+  path: /home/students/tyang/Downloads/idrid
+  normal_dir: normal # name of the folder containing normal images.
+  abnormal_dir: abnormal # name of the folder containing abnormal images.
+  normal_test_dir: null # name of the folder containing normal test images.
+  task: segmentation # classification or segmentation
+  mask: null
+  extensions: null
+  split_ratio: 0.2 # ratio of the normal images that will be used to create a test split
+  image_size: 256
+  normalization: imagenet # options: [none, imagenet]
+  test_split_mode:  synthetic # options: [from_dir, synthetic]
+  val_split_mode: same as test # options: [same_as_test, from_test, synthetic]
+  val_split_ratio: 0.2 # fraction of train/test images held out for validation (usage depends on val_split_mode)
   train_batch_size: 32
-  eval_batch_size: 32
+  test_batch_size: 32
   num_workers: 8
-  image_size: 640 # dimensions to which images are resized (mandatory)
-  center_crop:   # dimensions to which images are center-cropped after resizing (optional)
-  normalization: imagenet # data distribution to which the images will be normalized: [none, imagenet]
   transform_config:
     train: null
-    eval: null
-  test_split_mode: from_dir # options: [from_dir, synthetic]
-  test_split_ratio: 0.5 # fraction of train images held out testing (usage depends on test_split_mode)
-  val_split_mode: same_as_test # options: [same_as_test, from_test, synthetic]
-  val_split_ratio: 0.5 # fraction of train/test images held out for validation (usage depends on val_split_mode)
+    val: null
+  create_validation_set: true
   tiling:
     apply: false
     tile_size: null
@@ -34,9 +36,9 @@ model:
   layers:
     - layer2
     - layer3
-  coreset_sampling_ratio: 0.2
+  coreset_sampling_ratio: 0.1
 
-  num_neighbors: 5
+  num_neighbors: 9
   normalization_method: min_max # options: [null, min_max, cdf]
 
 metrics:
@@ -83,7 +85,7 @@ trainer:
   check_val_every_n_epoch: 1 # Don't validate before extracting features.
   fast_dev_run: false
   accumulate_grad_batches: 1
-  max_epochs: 1
+  max_epochs: 19
   min_epochs: null
   max_steps: -1
   min_steps: null

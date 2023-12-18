@@ -16,15 +16,57 @@ from torchvision.models import list_models as list_models_torch
 from torchvision.models.feature_extraction import create_feature_extractor
 from anomalib.models.components.filters import GaussianBlur2d
 import torchvision.transforms as transforms
+from anomalib.pre_processing.transforms import Denormalize
 
 from anomalib.models.components import DynamicBufferModule, FeatureExtractor, KCenterGreedy
 
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
-
+import torchvision.transforms.functional as TF
 
 MODELS_TIMM = list_models_timm()
 MODELS_TORCH = list_models_torch()
+
+
+import torchvision.models as models
+from torch.optim import SGD
+from torch.optim.lr_scheduler import StepLR
+
+#class UNetDenseNet121(nn.Module):
+ #   def __init__(self):
+ #       super(UNetDenseNet121, self).__init__()
+#
+        # Encoder (DenseNet121)
+  #      self.encoder = models.densenet121(pretrained=True)
+   #     self.encoder_features = nn.Sequential(*list(self.encoder.features.children())[:-1])
+
+        # Decoder
+    #    self.decoder = nn.Sequential(
+     #       nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2),
+      #      nn.ReLU(inplace=True),
+       #     nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2),
+        #    nn.ReLU(inplace=True),
+         #   nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
+          #  nn.ReLU(inplace=True),
+           # nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2),
+           # nn.ReLU(inplace=True),
+           # nn.ConvTranspose2d(64, 1, kernel_size=2, stride=2)
+        #)
+
+#    def forward(self, x):
+        # Forward pass through encoder
+ #       x = self.encoder_features(x)
+        
+        # Forward pass through decoder
+  #      x = self.decoder(x)
+
+   #     return x
+#from ultralytics.utils.general import non_max_suppression
+#yolo_model_path = "/home/students/tyang/yolov5/runs/train/exp27/weights/best.pt"
+#yolo_model = torch.hub.load('/home/students/tyang/yolov5', 'custom', path=yolo_model_path, source='local')  
+#yolo_model.conf = 0.94
+#yolo_model.iou = 0.45
+
 
 
 class PatchcoreModel(DynamicBufferModule, nn.Module):
@@ -78,7 +120,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         )
         self.feature_extractor.eval()
         
-        self.feature_pooler = torch.nn.AvgPool2d(3, 1, 1)
+        self.feature_pooler = torch.nn.AvgPool2d(4, 1, 1)
         self.anomaly_map_generator = AnomalyMapGenerator(input_size=input_size)
 
         self.register_buffer("memory_bank", Tensor())
@@ -101,10 +143,13 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         """
         if self.tiler:
             input_tensor = self.tiler.tile(input_tensor)
+        
+       # import ipdb; ipdb.set_trace()
 
         with torch.no_grad():
             features = self.feature_extractor(input_tensor)
-
+        
+       
         features = {layer: self.feature_pooler(feature) for layer, feature in features.items()}
         embedding = self.generate_embedding(features)
 
@@ -180,91 +225,76 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
         coreset = sampler.sample_coreset()
         self.memory_bank = coreset
-    #def kl_divergence_filter(self, feature, batch):
-    # feature_tensor = feature["adaptive_avg_pool2d"]
-    # tensor_size = feature_tensor.shape[0]
-    # kl_divergences = torch.zeros((tensor_size, tensor_size))
-    ## for i in range(tensor_size):
-     # for j in range(i+1, tensor_size):
-      #  feature_i = feature_tensor[i].view(-1)
-      #  feature_j = feature_tensor[j].view(-1)
-
-      ##  kl_divergences[i,j] = F.kl_div(F.softmax(feature_i,dim=0).log(), F.softmax(feature_j,dim=0))
-       # kl_divergences[j,i] = F.kl_div(F.softmax(feature_j,dim=0).log(), F.softmax(feature_i,dim=0))
     
-    # average_kl_divergences = torch.mean(kl_divergences, dim=1)
-    # most_unique_idx = torch.argmax(average_kl_divergences)
-    # most_unique_data = batch[most_unique_idx]
-
-     #return most_unique_data
+    #def od_crop(self, input_tensor: Tensor, ):
+      # invTrans = transforms.Compose([ transforms.Normalize(mean = [ 0., 0., 0. ],
+                                                                            #std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+                                          #  transforms.Normalize(mean = [ -0.485, -0.456, -0.406 ],
+                                                                          #  std = [ 1., 1., 1. ]),
+                                         #   transforms.Resize((640,640)),
+                                    #        
+                                      #      ])
+       #batch_size, channels, height, width = input_tensor.shape
+       #tf_imgs = []
+      # for i in range(batch_size):
     
-    #def kl_divengence_subsample(self, embedding: Tensor):
-        #import ipdb; ipdb.set_trace()
-       # tensor_size = embedding.shape[0]
-       # kl_divergences = torch.zeros((tensor_size, tensor_size))
-       # for i in range(tensor_size):
-         ## for j in range(i+1, tensor_size):
-          ## feature_i = embedding[i].view(-1)
-          # feature_j = embedding[j].view(-1)
-
-          # kl_divergences[i,j] = F.kl_div(F.softmax(feature_i,dim=0).log(), F.softmax(feature_j,dim=0))
-          # kl_divergences[j,i] = F.kl_div(F.softmax(feature_j,dim=0).log(), F.softmax(feature_i,dim=0))
+            #img = input_tensor[i]
     
-        #average_kl_divergences = torch.mean(kl_divergences, dim=1)
-       # most_unique_idx = torch.argmax(average_kl_divergences)
-       # self.memory_bank = embedding[0][most_unique_idx]
-
-    
-    #def kmeans_embedding(self, embedding, num_clusters: int) :
-       # """Subsample embedding based on coreset sampling and store to memory.
-
-       # Args:
-            #embedding (np.ndarray): Embedding tensor from the CNN
-            #sampling_ratio (float): Coreset sampling ratio
-        #"""
-        # Coreset Subsampling
-        #kmeans = KMeans(n_clusters=num_clusters)
-        #kmeans.fit(embedding)
-        #import ipdb; ipdb.set_trace()
-        #clusters_centers = kmeans.cluster_centers_
-        #labels = kmeans.labels_
-        #distances = [torch.cdist(embedding[i].unsqueeze(1), clusters_centers[labels[i]].unsqueeze(1)) for i in range(len(embedding))] 
-        #unique_embedding = [embedding[i] for i in range(len(embedding)) if distances[i] > 0.5]
-        #return unique_embedding
-
-    #def find_least_similiar_embeddings(self, embedding, num_bins:int) -> list[Tensor]:
-        #"""Find the most special embeddings in the memory bank.
-
-        #Args:
-            #embedding (list[Tensor]): Embedding tensor from the CNN
-            #num_bins (int): Number of bins to divide the embedding space into
-
-        #Returns:
-           # list[Tensor]: Embeddings that are most special
-       # """
-        #embedding = torch.vstack(embedding)
-        #hist, bin_edges = torch.histc(embedding, bins=num_bins)
-        #least_similiar_bins = torch.argmin(hist)
-        #least_similiar_embedding = []
-        #for i in range(len(self.embedding)):
-            #if bin_edges[i] <= least_similiar_bins[i] <= bin_edges[i+1]:    
-                #least_similiar_embedding.append(self.embedding[i])
+            #inv_img = invTrans(img)
+           # tf_img = TF.to_pil_image(inv_img.squeeze())
+           # tf_imgs.append(tf_img)
         
-        #least_similiar_embedding = torch.stack(least_similiar_embedding)
-        #return least_similiar_embedding
-    
-    #def get_unique_embedding(self, embedding) :
-        
-        #distances = torch.mm(embedding, embedding.t())
-        #unique_embedding = embedding[distances.max(dim=1) == distances.max(dim=1)[0]]
-        #return unique_embedding
+       #tf_preds = yolo_model(tf_imgs,size=640)
 
-    #def get_unfimiliar_embedding(self, embedding) :
-        #import ipdb; ipdb.set_trace()
-        #dist_matrix = torch.mm(embedding ** 2, torch.ones(embedding.shape[1], embedding.shape[0])) + torch.mm(embedding ** 2, torch.ones(embedding.shape[1], embedding.shape[0])).t() - 2 * torch.mm(embedding, embedding.t())
-        #max_idx = torch.argmax(dist_matrix, dim=1)  
-        #unfimiliar_embedding = embedding[max_idx]
-        #return unfimiliar_embedding
+       #cropped_images = []
+      # for i in range(batch_size):
+            #if tf_preds.xyxy[i].numel() == 0:
+                 #    continue
+           # else:
+               # pred_t = tf_preds.xyxy[i][0]
+    
+               # x1, y1, x2, y2, conf, cls = pred_t
+    
+                #x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+               # cropped_image = input_tensor[i][:, y1:y2, x1:x2]
+    
+            #cropped_image = transforms.Resize((240,240))(cropped_image)
+           # cropped_images.append(cropped_image)
+
+       #cropped_images = torch.stack(cropped_images)
+       #return cropped_images
+    
+    #def od_inference(self, input_tensor: Tensor, ):
+        #batch_size, channels, height, width = input_tensor.shape
+       ## de_imgs = []
+        #for i in range(batch_size):
+    
+          #  img = input_tensor[i]
+    
+           # de_img = Denormalize()(img)
+          #  de_imgs.append(de_img)
+        
+      #  de_preds = yolo_model(de_imgs,size=640)
+
+       # cropped_images = []
+        #for i in range(batch_size):
+            #if de_preds.xyxy[i].numel() == 0:
+                    # x1, y1, x2, y2 = 120, 120, 360, 360
+           # else:
+                #pred_t = de_preds.xyxy[i][0]
+    
+                #x1, y1, x2, y2, conf, cls = pred_t
+    
+               # x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+               # cropped_image = input_tensor[i][:, y1:y2, x1:x2]
+    
+            #cropped_image = transforms.Resize((240,240))(cropped_image)
+           # cropped_images.append(cropped_image)
+
+        #ropped_images = torch.stack(cropped_images)
+       # return cropped_images
+    
+ 
     def crop_disc(self, input_tensor: Tensor, ):
         """Crop the disc from the input tensor.
 

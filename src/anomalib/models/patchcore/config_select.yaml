@@ -1,17 +1,17 @@
 dataset:
   name: airogs
   format: airogs
-  path: /home/students/tyang/airogs 
+  path: /home/students/tyang/yolov5/runs/detect/exp5/crops
   task: classification # options: [classification, segmentation]
-  category: 0
-  pre_selection: True
-  number_of_samples: 869
+  category: optic disk
+  pre_selection: False
+  number_of_samples: 17000
   train_batch_size: 32
   eval_batch_size: 32
   num_workers: 8
-  image_size: 1250 # dimensions to which images are resized (mandatory)
-  center_crop: 700 # dimensions to which images are center-cropped after resizing (optional)
-  normalization: imagenet # data distribution to which the images will be normalized: [none, imagenet]
+  image_size: 256 # dimensions to which images are resized (mandatory)
+  center_crop:  # dimensions to which images are center-cropped after resizing (optional)
+  normalization: histogram_equalization # data distribution to which the images will be normalized: [none, imagenet]
   transform_config:
     train: null
     eval: null
@@ -30,11 +30,12 @@ dataset:
 
 model:
   name: patchcore
-  backbone: antialiased_wide_resnet50_2
+  backbone: wide_resnet50_2
   pre_trained: true
   layers:
     - layer2
     - layer3
+    
   coreset_sampling_ratio: 0.2
 
   num_neighbors: 5
