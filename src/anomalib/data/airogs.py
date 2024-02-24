@@ -156,8 +156,8 @@ def make_airogs_dataset(
         #ipdb.set_trace()
         filted_rows = samples[samples["label"] == "RG"]
         rg_ratio = filted_rows.shape[0] / samples.shape[0]
-        filted_rows = filted_rows.sample(n=int(rg_ratio * number_of_samples ), random_state=1)
-        select_csv_file = Path("/home/students/tyang/Documents/no_robust_near1003od.csv")
+        filted_rows = filted_rows.sample(n=int(rg_ratio * number_of_samples  ), random_state=1)
+        select_csv_file = Path("/home/students/tyang/Documents/layer4_embedding_24/cluster23.csv")
         selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
         selected_samples.insert(1,"label","NRG")
         #selected_samples = selected_samples[["label","image_path"]]

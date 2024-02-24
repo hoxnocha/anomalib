@@ -30,6 +30,7 @@ from anomalib.models.patchcore import Patchcore
 from anomalib.models.reverse_distillation import ReverseDistillation
 from anomalib.models.rkde import Rkde
 from anomalib.models.stfpm import Stfpm
+from anomalib.models.clip_model import CLIPModel
 
 __all__ = [
     "Cfa",
@@ -48,6 +49,7 @@ __all__ = [
     "Stfpm",
     "AiVad",
     "EfficientAd",
+    "ClipModel",
 ]
 
 logger = logging.getLogger(__name__)

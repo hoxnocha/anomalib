@@ -32,42 +32,6 @@ import torchvision.models as models
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
 
-#class UNetDenseNet121(nn.Module):
- #   def __init__(self):
- #       super(UNetDenseNet121, self).__init__()
-#
-        # Encoder (DenseNet121)
-  #      self.encoder = models.densenet121(pretrained=True)
-   #     self.encoder_features = nn.Sequential(*list(self.encoder.features.children())[:-1])
-
-        # Decoder
-    #    self.decoder = nn.Sequential(
-     #       nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2),
-      #      nn.ReLU(inplace=True),
-       #     nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2),
-        #    nn.ReLU(inplace=True),
-         #   nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
-          #  nn.ReLU(inplace=True),
-           # nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2),
-           # nn.ReLU(inplace=True),
-           # nn.ConvTranspose2d(64, 1, kernel_size=2, stride=2)
-        #)
-
-#    def forward(self, x):
-        # Forward pass through encoder
- #       x = self.encoder_features(x)
-        
-        # Forward pass through decoder
-  #      x = self.decoder(x)
-
-   #     return x
-#from ultralytics.utils.general import non_max_suppression
-#yolo_model_path = "/home/students/tyang/yolov5/runs/train/exp27/weights/best.pt"
-#yolo_model = torch.hub.load('/home/students/tyang/yolov5', 'custom', path=yolo_model_path, source='local')  
-#yolo_model.conf = 0.94
-#yolo_model.iou = 0.45
-
-
 
 class PatchcoreModel(DynamicBufferModule, nn.Module):
     """Patchcore Module."""
@@ -87,12 +51,13 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         self.layers = layers
         self.input_size = input_size
         self.num_neighbors = num_neighbors
-        
+        #import ipdb; ipdb.set_trace()
         if self.backbone in MODELS_TORCH:
             print(f"Loading model {self.backbone} from torchvision")
             _model_builder = get_model_builder(self.backbone)
             _model_weights = get_model_weights(self.backbone)
             model = _model_builder(weights=_model_weights.DEFAULT)
+           # model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7,7),stride=(3,3), bias=False)
         elif self.backbone in MODELS_TIMM:
             print(f"Loading model {self.backbone} from timm")
             model = timm.create_model(self.backbone, pretrained=True)
@@ -115,6 +80,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         
         self.feature_extractor = create_feature_extractor(
             model=model,
+            
             return_nodes={layer: layer for layer in self.layers},
             tracer_kwargs={"leaf_modules": [BlurPool]},  # for models comes from antialias
         )

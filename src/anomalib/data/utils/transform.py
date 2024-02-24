@@ -138,12 +138,7 @@ def get_transforms(
         if normalization == InputNormalizationMethod.IMAGENET:
             transforms_list.append(A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)))
         elif normalization == InputNormalizationMethod.NONE:
-            transforms_list.append(A.ToFloat(max_value=255))
-        elif normalization == InputNormalizationMethod.HISTOGRAM_EQUALIZATION:
-            transforms_list.append(A.Equalize(mode='cv', by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5))
-            transforms_list.append(A.ToFloat(max_value=255))
-            transforms_list.append(A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)))
-            
+            transforms_list.append(A.ToFloat(max_value=255))  
         else:
             raise ValueError(f"Unknown normalization method: {normalization}")
 

@@ -23,6 +23,7 @@ from .task_type import TaskType
 from .ucsd_ped import UCSDped
 from .visa import Visa
 from .airogs import Airogs
+#from .....clip_model.data.airogs_clip import AirogsClip
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class DataFormat(str, Enum):
     VISA = "visa"
     SHANGHAITECH = "shanghaitech"
     AIROGS = "airogs"
+    #AIROGS_CLIP = "airogs_clip"
 
 
 def get_datamodule(config: DictConfig | ListConfig) -> AnomalibDataModule:
@@ -280,5 +282,6 @@ __all__ = [
     "UCSDped",
     "TaskType",
     "ShanghaiTech",
-    "Airogs"
+    "Airogs",
+    #"AirogsClip",
 ]

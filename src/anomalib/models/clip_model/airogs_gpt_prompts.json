@@ -1,0 +1,25 @@
+{
+    "RG": [
+        "optic disc region with glaucoma has increased size of the white depression known as optic cup",
+        "optic disc region with glaucoma has high cup-to-disc ratio",
+        "optic disc region with glaucoma has thinner outer edge",
+        "optic disc region with glaucoma has small bleeding on or around the optic disc",
+        "optic disc region with glaucoma has an usual pale appearance of the optic disc compared to the pinkish-orange healthy color",
+        "optic disc region with glaucoma has loss of nerve fiber layer around the optic disc"
+
+        
+    ],
+
+    "NRG": [
+        "optic disc region without glaucoma has a central white depression known as optic cup that is small relative to the disc size",
+        "optic disc region without glaucoma has normal cup-to-disc ratio",
+        "optic disc region without glaucoma has normal outer edge",
+        "optic disc region without glaucoma has blood vessels emerge centrally from the disc and spread out without crossing or bending abruptly",
+        "optic disc region without glaucoma has healthy appearance with a clearly defined, pinkish-orange disc",
+        "optic disc region without glaucoma has rim around the optic cup maintains uniform and consistant thickness and color"
+        
+    ]
+
+
+
+}
