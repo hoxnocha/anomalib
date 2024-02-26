@@ -64,6 +64,14 @@ AIROGS_CATEGORIES = (
 
 
 import ipdb
+
+def process_category(df,  cat_path):
+            files = glob.glob1(cat_path, "*.jpg")
+            files = [os.path.basename(file)[:-4] for file in files]
+            df_cat = df[df['challenge_id'].isin(files)]
+            df_cat["challenge_id"] = f"{cat_path}/" + df_cat["challenge_id"] + ".jpg"
+            return df_cat
+
 def make_airogs_dataset(
     root: str | Path, 
     root_category: str | Path ,
@@ -127,19 +135,28 @@ def make_airogs_dataset(
     root = Path(root)
     root_category = Path(root_category)
 
+    #ipdb.set_trace()
+    image_folder_paths = {f"cat{i}_path": str(root) + "/" + f"cat{i}/crops/od" for i in range(5)}
+    
+    #df = pd.concat(dfs)
+
     csv_file = root / "train_labels.csv"
     if not csv_file.is_file():
         raise FileNotFoundError(f"Could not found {csv_file}")
     
 
     samples = pd.read_csv(csv_file)
-    files =  glob.glob(os.path.join(str(root_category), "*.jpg" ))
-    files = [os.path.basename(file)[:-4] for file in files]
-    category_files = pd.DataFrame(files, columns=['challenge_id'])
-    samples = category_files.merge(samples)
+    #ipdb.set_trace()
+    dfs = [process_category(samples, cat_path) for cat_path in image_folder_paths.values()] #for clip model, could access whole dataset
+    samples = pd.concat(dfs)#for clip model
+   
+    #files =  glob.glob(os.path.join(str(root_category), "*.jpg" ))
+    #files = [os.path.basename(file)[:-4] for file in files]
+    #category_files = pd.DataFrame(files, columns=['challenge_id'])
+    #samples = category_files.merge(samples)
     
     
-    samples["challenge_id"] = f"{root_category}" + "/" + samples["challenge_id"] + ".jpg"
+    #samples["challenge_id"] = f"{root_category}" + "/" + samples["challenge_id"] + ".jpg"
     samples = samples.rename(columns={"challenge_id": "image_path", "class":"label"})
     samples = samples[["label","image_path"]]
     
@@ -152,12 +169,12 @@ def make_airogs_dataset(
     samples.label_index = samples.label_index.astype(int)
     samples["mask_path"] = ""
     
-    if pre_selection == True:
+    if pre_selection == True:# for patchcore
         #ipdb.set_trace()
         filted_rows = samples[samples["label"] == "RG"]
         rg_ratio = filted_rows.shape[0] / samples.shape[0]
         filted_rows = filted_rows.sample(n=int(rg_ratio * number_of_samples  ), random_state=1)
-        select_csv_file = Path("/home/students/tyang/Documents/layer4_embedding_24/cluster23.csv")
+        select_csv_file = Path("/home/students/tyang/Documents/layer4_embedding_24/cluster6.csv")
         selected_samples = pd.read_csv(select_csv_file, usecols=[0], names=["image_path"])
         selected_samples.insert(1,"label","NRG")
         #selected_samples = selected_samples[["label","image_path"]]
@@ -207,6 +224,7 @@ class AirogsDataset(AnomalibDataset):
     
     def _setup(self) -> None:
         #ipdb.set_trace()
+
         self.samples = make_airogs_dataset(
             self.root, 
             self.root_category,

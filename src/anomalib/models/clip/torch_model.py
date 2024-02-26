@@ -6,8 +6,9 @@ import torchvision
 from PIL import Image
 from torchmetrics import MeanMetric, Accuracy, AUROC, MetricCollection
 from torchmetrics.functional import f1_score
+import numpy as np
 
-from clip_model.data.airogs import AirogsDataModule
+#from clip_model.data.airogs import AirogsDataModule
 import open_clip
 from open_clip import create_model_and_transforms,get_tokenizer
 import faiss
@@ -21,36 +22,117 @@ from .airogs_winclip_prompts import (
 # debug
 import ipdb
 
+from anomalib.models.components import  DynamicBufferModule, KCenterGreedy
 
 
-PATH_TO_PROMPTS = "/home/students/tyang/anomalib/src/anomalib/models/clip_model/airogs_gpt_prompts.json"
+
+PATH_TO_PROMPTS = "/home/students/tyang/anomalib/src/anomalib/models/clip/airogs_gpt_prompts.json"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class CLIPModel(nn.Module):
+class CLIPModel(DynamicBufferModule, nn.Module):
     def __init__(self, 
                  model_name: str = "ViT-B-16-plus-240",
                  pretrained: str = "laion400m_e32",
-                 category: str = "0",
+                 
                  object: str = "retina", # text descriptor for the object to be classified, "fundus", for 2 stage classification consider "optic disc"
                  
                  zero_shot: bool = False,
                  text_prompt_type: str = "gpt", # "standard" or "gpt". gpt is for gpt4 generated prompts
-                 k_shot: int = 5,
-                 classifier_method: str = "PCA",
+                 #k_shot: int = 5,
+                 #classifier_method: str = "PCA", # "PCA" or "min_max"
+                 
                  ):
         super().__init__()
         
        
         self.clip_model, _, _ = create_model_and_transforms(model_name, pretrained)
         self.tokenizer = get_tokenizer(model_name)
-        self.category = category
+        
 
         self.object = object
   
         self.zero_shot = zero_shot
         self.text_prompt_type = text_prompt_type
-        self.k_shot = k_shot
-        self.classifier_method = classifier_method
+        #self.k_shot = k_shot
+        #self.classifier_method = classifier_method
+        self.register_buffer("memory_bank", torch.Tensor())
+        self.memory_bank: torch.Tensor
+
+
+    def forward(self, image: torch.Tensor):
+        """return embedding during training or similiarity score during testing"""
+        with torch.no_grad():
+            image_features = self.clip_model.encode_image(image)
+            image_features /= image_features.norm(dim=-1, keepdim=True)
+        
+        batch_size,_ = image_features.shape
+
+        if self.training:
+            output = image_features
+        
+        else:
+            if self.zero_shot: # zero shot learning, calculate similarity score with text features
+                text_features = self.build_text_classifier()
+                text_features /= text_features.norm(dim=-1, keepdim=True)
+                text_probs = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+                output = {"pred_scores": text_probs[:, 0]}
+ 
+            
+            else :
+                pred_scores = self.computing_anomaly_score(image_features, self.memory_bank, )
+                output = {"pred_scores": pred_scores}
+            
+            
+
+
+
+
+       
+        return output
+
+                
+
+    
+    def subsample_embedding(self, embedding: torch.Tensor, sampling_ratio: float, ) -> None:
+        """Subsample embedding based on coreset sampling and store to memory.
+
+        Args:
+            embedding (np.ndarray): Embedding tensor from the CNN
+            sampling_ratio (float): Coreset sampling ratio
+        """
+        # Coreset Subsampling
+          # methode == "min_max":
+        
+        sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
+        coreset = sampler.sample_coreset()
+        self.memory_bank = coreset
+        
+        #else: # PCA
+            
+    
+    
+    def computing_anomaly_score(self, embedding: torch.Tensor, memory_bank: torch.Tensor) :    
+        """Nearest Neighbours using brute force method and cosine norm.
+
+        Args:
+            embedding (Tensor): Features to compare the distance with the memory bank.
+            
+
+        Returns:
+            Tensor: anomaly scores.
+            
+        """
+        input_norm = F.normalize(embedding, dim=-1)
+        memory_norm = F.normalize(memory_bank, dim=-1)
+
+        cos_similarities = input_norm @ memory_norm.T
+        max_cos_similarities = torch.max(cos_similarities, dim=-1).values
+
+        anomoly_scores = 1 - max_cos_similarities
+
+        return anomoly_scores
+
+
     
     @torch.no_grad()
     def build_text_classifier(self,):
@@ -96,28 +178,17 @@ class CLIPModel(nn.Module):
                 
                 return torch.cat(text_weights, dim=0)
             
-    def few_shot_image_classifier(self, x: torch.Tensor, ):
-        """based on the embeddings extracted from the image, do PCA and cosine similarity to classify the image"""
+#
 
-        x = self.clip_model.encode_image(x)
-        x = F.normalize(x, dim=-1)
-        if self.classifier_method == "PCA":
-            mat = faiss.PCAMatrix(x.shape[-1], 2)
-            mat.train(x.cpu().numpy())
+
+
             
 
         
             
         
 
-        if self.classifier_method == "cosine":
- 
-            faiss_index = faiss.IndexFlatL2(x.shape[-1])
-            faiss_index.add(x.cpu().numpy())
-            _, I = faiss_index.search(x.cpu().numpy(), self.k_shot)
-            mean_class_embeddings = torch.mean(x[I], dim=1)
-            mean_class_embeddings = F.normalize(mean_class_embeddings, dim=-1)
-            return mean_class_embeddings
+        
             
 """ @torch.no_grad()
     def image_encoder(self, x, normalize=True):
@@ -195,8 +266,7 @@ class CLIPModel(nn.Module):
     
 
 
-    def forward(self, image: torch.Tensor, text_embeddings: torch.Tensor):
-        pass
+
         
         
 
