@@ -39,6 +39,7 @@ class Clip(AnomalyModule):
             zero_shot: bool = False,
             text_prompt_type: str = "gpt",
             k_shot: int = 0,
+            classifier_method: str = "PCA",
 
             
             sampling_ratio: float = 0.2,
@@ -52,7 +53,8 @@ class Clip(AnomalyModule):
             object=object,
             zero_shot=zero_shot,
             text_prompt_type=text_prompt_type,
-            #k_shot=k_shot,
+            classifier_method=classifier_method,
+
         )
 
         self.k_shot = k_shot
@@ -61,15 +63,13 @@ class Clip(AnomalyModule):
         self.sampling_ratio = sampling_ratio
 
     def configure_optimizers(self,):
-            #optimizer = torch.optim.Adam(self.model.parameters(), lr=4e-6)
+   
             return None
         
     
     def training_step(self, batch: dict[str, str| torch.Tensor], *args, **kwargs):
 
             del args, kwargs
-            #x = batch["image"]
-            #self.reference_images.append(x)
 
             image_embeddings = self.model(batch["image"])
             self.ref_image_embeddings.append(image_embeddings)
@@ -84,17 +84,6 @@ class Clip(AnomalyModule):
                 ref_image_embedding_tensor = ref_image_embedding_tensor[torch.randperm(ref_image_embedding_tensor.size(0))[ : self.k_shot]]
 
          self.model.subsample_embedding(ref_image_embedding_tensor, sampling_ratio=self.sampling_ratio)
-        
-         #self.text_embeddings = self.model.build_text_classifier()  
-
-         #ref_img_tensor = torch.cat(self.reference_images, dim=0)
-         #if self.k_shot != 0:
-          #ref_img_tensor = ref_img_tensor[torch.randperm(ref_img_tensor.size(0))[ : self.k_shot]]
-        
-          #self.model.build_image_classifier(ref_img_tensor)
-         
-         
-         #logger.info("text embeddings: ", text_embeddings)
          
 
     def validation_step(self, batch: dict[str, str| torch.Tensor], *args, **kwargs):
@@ -105,10 +94,7 @@ class Clip(AnomalyModule):
 
         return batch
 
-       
-            
-
-
+  
 
 class ClipLightning(Clip):
 
@@ -122,6 +108,7 @@ class ClipLightning(Clip):
             text_prompt_type=hparams.model.text_prompt_type,
             k_shot=hparams.model.k_shot,
             sampling_ratio=hparams.model.sampling_ratio,
+            classifier_method=hparams.model.classifier_method,
 
         )
 

@@ -13,6 +13,7 @@ import open_clip
 from open_clip import create_model_and_transforms,get_tokenizer
 import faiss
 #import tqdm
+from sklearn.decomposition import PCA
 import json
 from .airogs_winclip_prompts import (
      TEMPLATE_LEVEL_PROMPTS,
@@ -38,8 +39,8 @@ class CLIPModel(DynamicBufferModule, nn.Module):
                  
                  zero_shot: bool = False,
                  text_prompt_type: str = "gpt", # "standard" or "gpt". gpt is for gpt4 generated prompts
-                 #k_shot: int = 5,
-                 #classifier_method: str = "PCA", # "PCA" or "min_max"
+                 
+                 classifier_method: str = "PCA", # "PCA" or "vanilla"
                  
                  ):
         super().__init__()
@@ -53,8 +54,8 @@ class CLIPModel(DynamicBufferModule, nn.Module):
   
         self.zero_shot = zero_shot
         self.text_prompt_type = text_prompt_type
-        #self.k_shot = k_shot
-        #self.classifier_method = classifier_method
+        
+        self.classifier_method = classifier_method
         self.register_buffer("memory_bank", torch.Tensor())
         self.memory_bank: torch.Tensor
 
@@ -79,14 +80,10 @@ class CLIPModel(DynamicBufferModule, nn.Module):
  
             
             else :
-                pred_scores = self.computing_anomaly_score(image_features, self.memory_bank, )
+                pred_scores = self.computing_anomaly_score(image_features, self.memory_bank, self.classifier_method )
                 output = {"pred_scores": pred_scores}
             
             
-
-
-
-
        
         return output
 
@@ -100,18 +97,21 @@ class CLIPModel(DynamicBufferModule, nn.Module):
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
-        # Coreset Subsampling
-          # methode == "min_max":
         
-        sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
-        coreset = sampler.sample_coreset()
-        self.memory_bank = coreset
+        if sampling_ratio == 1.0:
+            self.memory_bank = embedding
+
+        else:
         
-        #else: # PCA
+         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
+         coreset = sampler.sample_coreset()
+         self.memory_bank = coreset
+        
+        
             
     
     
-    def computing_anomaly_score(self, embedding: torch.Tensor, memory_bank: torch.Tensor) :    
+    def computing_anomaly_score(self, embedding: torch.Tensor, memory_bank: torch.Tensor, classifier_method: str) -> torch.Tensor:    
         """Nearest Neighbours using brute force method and cosine norm.
 
         Args:
@@ -125,10 +125,30 @@ class CLIPModel(DynamicBufferModule, nn.Module):
         input_norm = F.normalize(embedding, dim=-1)
         memory_norm = F.normalize(memory_bank, dim=-1)
 
-        cos_similarities = input_norm @ memory_norm.T
-        max_cos_similarities = torch.max(cos_similarities, dim=-1).values
+        if classifier_method == "PCA":
+            pca = PCA(n_components=0.95)
+            
+            input_np = input_norm.cpu().numpy()
+            memory_np = memory_norm.cpu().numpy()
 
-        anomoly_scores = 1 - max_cos_similarities
+            input_pca = pca.fit_transform(input_np)
+            memory_pca = pca.transform(memory_np)
+
+            input_norm = torch.tensor(input_pca).to(device=device)
+            memory_norm = torch.tensor(memory_pca).to(device=device)
+
+            cos_similarities = input_norm @ memory_norm.T
+
+            max_cos_similarities = torch.max(cos_similarities, dim=-1).values
+
+            anomoly_scores = 1 - max_cos_similarities
+
+        else:
+            cos_similarities = input_norm @ memory_norm.T
+
+            max_cos_similarities = torch.max(cos_similarities, dim=-1).values
+
+            anomoly_scores = 1 - max_cos_similarities
 
         return anomoly_scores
 
@@ -178,92 +198,6 @@ class CLIPModel(DynamicBufferModule, nn.Module):
                 
                 return torch.cat(text_weights, dim=0)
             
-#
-
-
-
-            
-
-        
-            
-        
-
-        
-            
-""" @torch.no_grad()
-    def image_encoder(self, x, normalize=True):
-        
-        image encoder, last layer of vision transformer resblocks will be replaced
-        by CSA (Correlative Self-Attention) model
-        
-        vit = self.clip_model.visual.eval()
-        w, h = x.shape[-2:]
-        x = SCLIPADModel.get_conv1(
-            vit=vit, patch_size=self.patch_size, stride=self.patch_size)(x)
-        x = x.reshape(x.shape[0], x.shape[1], -1)
-        x = x.permute(0, 2, 1)
-        # class embedding and positional embeddings
-        x = torch.cat(
-            [vit.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
-             x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-        if x.shape[1] != vit.positional_embedding.shape[0]:
-            x = x + self.interpolate_pos_encoding(x, w, h)
-        else:
-            x = x + vit.positional_embedding.to(x.dtype)
-        x = vit.patch_dropout(x)
-        x = vit.ln_pre(x)
-        x = x.permute(1, 0, 2)  # NLD -> LND
-
-        resblocks = vit.transformer.resblocks
-
-        for block in resblocks[:self.feature_layer]:
-            x = block(x) 
-
-         Applying Self Attention Module in the last attention block 
-        for block in resblocks[self.feature_layer:]:
-            if self.isCSA:
-                csa_x = x + csa_attn(
-                    block, 
-                    block.ln_1(x), 
-                    istimm=False, 
-                    attn_logit_scale=self.attn_logit_scale,
-                )
-                csa_x = csa_x + block.mlp(block.ln_2(csa_x))
-
-                if hasattr(self, "split_layers") and "visual_11" in self.split_layers:
-                    split_block = self.split_layers["visual_11"]
-                    split_x = x + csa_attn(
-                        split_block, 
-                        split_block.ln_1(x), 
-                        istimm=self.istimm, 
-                        attn_logit_scale=self.attn_logit_scale
-                    ) 
-                    split_x = split_x + split_block.mlp(split_block.ln_2(split_x))
-                if self.clsCSA:
-                    x[0:1, ...] = csa_x[0:1, ...]
-                else:
-                    
-                    x[0:1, ...] = block(x)[0:1, ...]
-
-                if hasattr(self, "split_layers") and "visual_11" in self.split_layers:
-                    x[1:, ...] = split_x[1:, ...]
-                else:
-                    x[1:, ...] = csa_x[1:, ...]
-            else:
-                x = block(x)
-
-        x = x.permute(1, 0, 2)
-        x = vit.ln_post(x) @ vit.proj
-
-        
-        if normalize:
-            x = F.normalize(x, dim=-1, p=2)
-        return {
-            "cls": x[:, 0, :],
-            "tokens": x[:, 1:, :]
-        }"""
-
-    
 
 
 

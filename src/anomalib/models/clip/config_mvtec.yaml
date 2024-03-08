@@ -1,13 +1,9 @@
 dataset:
-  name: airogs
-  format: airogs
-  path: /home/students/tyang/yolov5results
+  name: mvtec
+  format: mvtec
+  path: /netshares/images/PublicDatasets/Mvtec_AD
   task: classification # options: [classification, segmentation]
-  category: cat1/crops/od
-  number_of_samples: 70000
-  pre_selection: False
-
-
+  category: bottle
   train_batch_size: 256
   eval_batch_size: 256
   num_workers: 8
@@ -33,15 +29,12 @@ model:
   name: clip
   backbone: ViT-B-16-plus-240
   pretrained: laion400m_e32
-  object: retina
+  object: bottle
   zero_shot: False
   text_prompt_type: gpt
-  k_shot: 0
-  classifier_method: vanilla 
+  k_shot: 1
   
-  sampling_ratio: 1.0
-
-  
+  sampling_ratio: 1
   normalization_method: min_max # options: [null, min_max, cdf]
 
 metrics:
